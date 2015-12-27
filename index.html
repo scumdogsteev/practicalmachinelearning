@@ -76,7 +76,7 @@ img {
 </div>
 <div id="getting-data-and-loading-packages" class="section level3">
 <h3>Getting Data and Loading Packages</h3>
-<p>The training and test sets of data were first downloaded (using [this function][downLoad]) and assigned to dataframes (the training data set was assigned to <code>train</code> and the testing data set was assigned to <code>test</code>). Packages required for this analysis (<code>caret</code>, <code>doParallel</code>, <code>randomForest</code>, and <code>rattle</code>) were loaded into memory using <a href="http://projects.mylesandmyles.info/R-functions-and-such/pkgInst/pkgInst.html">this function</a>.</p>
+<p>The training and test sets of data were first downloaded (using [this function][downLoad]) and assigned to dataframes (the training data set was assigned to <code>train</code> and the testing data set was assigned to <code>test</code>). Packages required for this analysis (<code>caret</code>, <code>doParallel</code>, and <code>randomForest</code>) were loaded into memory using <a href="http://projects.mylesandmyles.info/R-functions-and-such/pkgInst/pkgInst.html">this function</a>.</p>
 <pre class="r"><code>## download the data if it is not currently in the working directory
 downLoad &lt;- function(dir = &quot;data&quot;, url, file) {
     ## check if the expected directory exists in the working directory.

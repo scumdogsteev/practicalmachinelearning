@@ -34,8 +34,8 @@ data.  The prediction model was also used to predict 20 test cases.
 The training and test sets of data were first downloaded (using 
 [this function][downLoad]) and assigned to dataframes (the training data set was 
 assigned to `train` and the testing data set was assigned to `test`).  Packages 
-required for this analysis (`caret`, `doParallel`, `randomForest`, and `rattle`) 
-were loaded into memory using [this function][pkgInst].
+required for this analysis (`caret`, `doParallel`, and `randomForest`) were 
+loaded into memory using [this function][pkgInst].
 
 ```{r download and load}
 ## download the data if it is not currently in the working directory
