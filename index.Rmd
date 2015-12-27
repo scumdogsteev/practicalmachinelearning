@@ -1,0 +1,261 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "submitted by Steve Myles"
+date: "26 December 2015"
+output:
+  html_document:
+    theme: cosmo
+    toc: no
+  knitrBootstrap::bootstrap_document:
+    highlight.chooser: yes
+    theme.chooser: yes
+---
+
+### Introduction
+
+In [a study][link], six participants were asked to perform dumbbell lifts 
+correctly and incorrectly in five different ways.  Data were gathered from 
+accelerometers on the belt, forearm, arm, and dumbbell of each participant.  The
+test subjects were all males aged 20-28 years and the dumbbells were light, 
+1.25kg.
+
+This report describes a method for predicting the way in which the participants
+did the exercise (the `classe` variable in the data).  Class A indicates the 
+correct execution of the exercise while the other four values of this variable
+represent common mistakes.
+
+To begin the analysis and prediction, relevant packages were installed.  Then, 
+the data were downloaded and an exploratory analysis was performed.  Finally, 
+the machine learning algorithm was created and testing on a training set of 
+data.  The prediction model was also used to predict 20 test cases. 
+
+### Getting Data and Loading Packages
+
+The training and test sets of data were first downloaded (using 
+[this function][downLoad]) and assigned to dataframes (the training data set was 
+assigned to `train` and the testing data set was assigned to `test`).  Packages 
+required for this analysis (`caret`, `doParallel`, `randomForest`, and `rattle`) 
+were loaded into memory using [this function][pkgInst].
+
+```{r download and load}
+## download the data if it is not currently in the working directory
+downLoad <- function(dir = "data", url, file) {
+    ## check if the expected directory exists in the working directory.
+    dir <- paste("./", dir, sep = "")
+    if (!file.exists(dir)) {
+        ## if not, check whether the expected file exists in the working 
+        ## directory
+        if (!file.exists(file)) {
+            ## if not, try to download it
+            download.file(url, file, mode="wb")
+        }
+    }
+}
+
+## download the training data and assign it to a dataframe called "train," converting
+## blank observations to NA
+downLoad(url = "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+train <- read.csv("data/pml-training.csv", na.strings=c("","NA"))
+
+## download the testing data and assign it to a dataframe called "test"
+downLoad(url = "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+test <- read.csv("data/pml-testing.csv")
+
+## load relevant packages into the R environment, installing them if necessary
+pkgInst <- function(x) {
+    for (i in x) {
+        ## "require" returns TRUE invisibly if it was able to load package
+        if (!require(i, character.only = TRUE)) {
+            ## if package was not able to be loaded, install it
+            install.packages(i, dependencies = TRUE, 
+                             repos="http://cran.r-project.org/")
+            ## load package after installing
+            require (i, character.only = TRUE)
+        }
+    }
+}
+
+## assign names of required packages to "pkgs"
+pkgs <- c("R2HTML", "caret", "doParallel", "randomForest")
+
+## load/install packages
+pkgInst(pkgs)
+```
+
+### Exploratory Data Analysis
+
+First, a [summary][summary] of the training data was displayed.  For the 
+sake of brevity, this is available [here][summary].
+
+```{r training summary}
+## assign the summary table of the training data set to the variable summ
+summ <- summary(train)
+
+## use the R2HTML package's "HTML" function to write the output to an html file
+HTML(summ, file="summary.html")
+```
+
+For purposes of this exercise, the row number (variable `X`) is irrelevant and 
+is thus dropped from the analysis.  Also, several columns in the dataframe have 
+19,216 observations with value of NA (e.g., `max_roll_belt`).  These are removed 
+from consideration as having complete data sets is likely to increase prediction 
+accuracy.
+
+```{r cleanup training data}
+## remove the column with the row number
+train$X <- NULL
+
+## remove the columns with 19,216 NA observations
+train <- train[,colSums(is.na(train)) < 19216]
+```
+
+The remaining fifty-eight (58) variables were used as predictors (there are
+(fifty-nine (59) remaining columns including `classe`).
+
+A histogram showing the frequency of the values of `classe` was created to 
+see if there is a large skew in the data toward one of the possible ways of
+performing the exercise.  The frequency histogram was created using the method
+described in [this Stack Overflow answer][soanswer]
+
+```{r histogram, fig.keep="none"}
+## create a variable to represent the x-axis as "classe" is a factor and
+## histograms can only be drawn for numeric data
+classnum <- as.numeric(train$classe)
+
+## create the histogram and change its density to percentages
+h <- hist(classnum)
+h$density <- h$counts / sum(h$counts) * 100
+```
+```{r histogram2, fig.path="images/"}
+## plot the histogram, leaving the x-axis blank
+plot(h, freq = F, main = "Histogram of Classe for the Training Set", ylab = 
+         "Percentage", xlab="Classe", xaxt="n", col="blue")
+
+## add the axis
+axis(1,at=1:5,labels = c("A","B","C","D","E"))
+```
+
+Based on the histogram, it does not seem that any of the values is much more
+likely than any of the others.
+
+### Prediction Algorithm
+
+A random forest was chosen as the prediction algorithm, despite its relatively 
+slow computational speed, due to the likelihood that accuracy would be 
+increased.  The `caret` package's `train` function was used to fit the model, 
+using cross validation with ten repeats (k = 10).  Principal Components Analysis 
+(PCA) was also used to preprocess the data in order to further reduce the number 
+of predictors.  Two cores (the total number of processors available on the 
+machine fitting the model) were used to aid in decreasing computational time. 
+The prediction algorithm's code chunk was also cached to facilitate re-running 
+the model.
+
+```{r prediction, cache = TRUE, cache.path = "cache/"}
+## use two cores
+registerDoParallel(cores=2)
+
+## set trainControl parameters
+ctrl <- trainControl(method = "cv", repeats = 10)
+
+## fit the model
+modelFit <- train(classe ~ ., data = train, method = "rf", trControl = ctrl, 
+                  preProcess = "pca")
+```
+
+### In-Sample Error:  Accuracy with Training Set
+
+The prediction algorithm was then used to predict the training data set in order
+to determine its accuracy.
+
+```{r prediction training set}
+## first, display the model's output
+modelFit
+
+## then predict the training set
+predTrain <- predict(modelFit, train)
+
+## then display the accuracy of the model
+table(predTrain,train$classe)
+```
+
+From the above table, the prediction algorithm's in-sample error (the accuracy 
+of its predictions for the training set) is 100%.  This follows as the training 
+set was used to create the prediction algorithm, though this accuracy is very 
+high even for in-sample error.  Of course, the actual predictive accuracy of the 
+algorithm is the out of sample error, which was next calculated by predicting 
+the values of the test set.  This must be less than or equal to the in-sample 
+error (regardless of the in-sample error's actual value).
+
+### Out of Sample Error:  Accuracy with Testing Set
+
+Per the assignment, the prediction algorithm created above is applied to the 
+twenty (20) cases in the testing data set.  For each test case, a text file is 
+created with a single capital letter (A, B, C, D, or E) corresponding to the 
+prediction for the corresponding problem in the test data set. These files were
+then manually submitted to Coursera for grading.
+
+```{r prediction testing set}
+## predict the testing set and store the results in a character vector
+predTest <- as.character(predict(modelFit, test))
+
+## display the predictions
+predTest
+
+## create a directory called "test_output," suppressing warnings if the 
+## directory already exists
+dir.create(file.path("test_output"), showWarnings = FALSE)
+
+## create a function to write the files to be submitted
+pml_write_files = function(x){
+    n = length(x)
+    for(i in 1:n){
+        filename = paste0("test_output/problem_id_", i, ".txt")
+        write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, 
+                    col.names=FALSE)
+    }
+}
+
+## then create the files, one for each prediction
+pml_write_files(predTest)
+```
+
+According to the "Prediction Assignment Submission" on Coursera, the algorithm 
+described above accurately predicted nineteen (19) of the twenty (20) test 
+cases, so its out of sample accuracy (accuracy with the test data) was 95% -- 
+only test problem 3 was incorrectly predicted.  This level of accuracy makes 
+sense due to out of sample error necessarily being less than or equal to 
+in-sample error.  Due to the small sample size of the test data set, it is 
+possible that the algorithm would not perform as well for a larger data set.
+
+### Notes
+
+* The data set used is from [here][link].
+* This report was written in [R Markdown][rmd] and converted to html via 
+  [knitr][knitr].
+* The domain http://projects.mylesandmyles.info/ is a [custom domain][custom] 
+  for http://scumdogsteev.github.io/.  The URL for this page is either 
+  http://projects.mylesandmyles.info/practicalmachinelearning/
+  or http://scumdogsteev.github.io/practicalmachinelearning/.
+    * The repo for this report is located [here][repo].
+    * For the source .Rmd document for this page, please [click here][src].
+
+### Citations
+* Liaw, A. and M. Wiener (2002). Classification and Regression by randomForest. 
+  *R News* Vol. 2 N. 3, Vienna, Austria.
+* Lecoutre, Eric (2003). The R2HTML Package. *R News*, Vol 3 N. 3, Vienna, 
+  Austria.
+* Velloso, E., Bulling, A., Gellersen, H., Ugulino, W., Fuks, H. (2013). 
+  [Qualitative Activity Recognition of Weight Lifting Exercises][citation].  
+  *Proceedings of 4th International Conference in Cooperation with SIGCHI 
+  (Augmented Human '13)*, ACM SIGCHI, Stuttgart, Germany.
+
+[pkgInst]: http://projects.mylesandmyles.info/R-functions-and-such/pkgInst/pkgInst.html
+[summary]: summary.html
+[soanswer]: http://stackoverflow.com/a/9122859
+[link]: http://groupware.les.inf.puc-rio.br/har
+[rmd]: http://rmarkdown.rstudio.com/
+[knitr]: http://knitr.com/
+[custom]: https://help.github.com/articles/setting-up-a-custom-domain-with-github-pages/
+[repo]: https://github.com/scumdogsteev/practicalmachinelearning
+[src]: https://github.com/scumdogsteev/practicalmachinelearning/blob/gh-pages/index.Rmd
+[citation]: http://groupware.les.inf.puc-rio.br/work.jsf?p1=11201
