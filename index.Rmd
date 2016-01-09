@@ -249,6 +249,7 @@ possible that the algorithm would not perform as well for a larger data set.
   *Proceedings of 4th International Conference in Cooperation with SIGCHI 
   (Augmented Human '13)*, ACM SIGCHI, Stuttgart, Germany.
 
+[downLoad]: http://projects.mylesandmyles.info/R-functions-and-such/download_and_unzip/download_and_unzip.html
 [pkgInst]: http://projects.mylesandmyles.info/R-functions-and-such/pkgInst/pkgInst.html
 [summary]: summary.html
 [soanswer]: http://stackoverflow.com/a/9122859
